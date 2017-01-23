@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+
+# Copyright (c) 2017 Ryan Gonzalez
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+set -e
+
+error() {
+    echo "$@" >&2
+    exit 1
+}
+
+tool_test() {
+    local path=${!1}
+    which "$path" 2>&1 >/dev/null && tool=$1
+}
+
+usage_str="usage: $0 [-h] [-ios] [<file|->]"
+
+usage() {
+    echo "$usage_str"
+}
+
+usage_error() {
+    error "$usage_str"
+}
+
+help() {
+    usage
+    echo
+    echo -e "-h\tShow this screen."
+    echo -e "-l\tPrint the license."
+    echo -e "-i\tInstall this tool to /usr/bin."
+    echo -e "-o\tPaste instead of copy."
+    echo -e "-s\tTry to use xsel before trying xclip."
+    echo -e "<file>\tInput file when copying, or output file when pasting."
+    echo -e "\tDefault: stdin/stdout."
+    exit 0
+}
+
+license() {
+    sed -n 's/^# //;3,20p' "$0"
+    exit 0
+}
+
+install_() {
+    install "$0" /usr/bin/clip
+    exit 0
+}
+
+tail() {
+    echo "$@" | cut -c 2-
+}
+
+
+mode=copy
+order="xclip xsel"
+xclip=${CLIP_XCLIP:-xclip}
+xsel=${CLIP_XSEL:-xsel}
+
+while [[ "$1" =~ ^- ]]; do
+    arg=`tail "$1"`
+
+    while [ -n "$arg" ]; do
+        case "$arg" in
+        h*) help ;;
+        l*) license ;;
+        o*) mode=paste ;;
+        i*) install_ ;;
+        s*) order="xsel xclip" ;;
+        *) usage_error ;;
+        esac
+
+        arg=`tail "$arg"`
+    done
+
+    shift
+done
+
+if [ -n "$1" ]; then
+    file="$1"
+    shift
+fi
+
+[ -n "$1" ] && usage_error
+
+for tool_option in $order; do
+    tool_test $tool_option
+    [ -n "$tool" ] && break
+done
+[ -z "$tool" ] && error "Cannot find xclip or xsel."
+
+case "$tool-$mode-$file" in
+    xclip-copy-*) $xclip -selection clipboard $file ;;
+    xclip-paste-) $xclip -o -selection clipboard ;;
+    xclip-paste-*) $xclip -o -selection clipboard > $file ;;
+    xsel-copy-) $xsel -ib ;;
+    xsel-copy-*) $xsel -ib < $file ;;
+    xsel-paste-) $xsel -ob ;;
+    xsel-paste-*) $xsel -ob > $file ;;
+esac
