@@ -46,7 +46,7 @@ help() {
     echo
     echo -e "-h\tShow this screen."
     echo -e "-l\tPrint the license."
-    echo -e "-i\tInstall this tool to /usr/bin."
+    echo -e "-i\tInstall this tool to \$BINDIR (default: /usr/local/bin)."
     echo -e "-o\tPaste instead of copy."
     echo -e "-s\tTry to use xsel before trying xclip."
     echo -e "<file>\tInput file when copying, or output file when pasting."
@@ -60,7 +60,7 @@ license() {
 }
 
 install_() {
-    install "$0" /usr/bin/clip
+    install "$0" "${BINDIR:-/usr/local/bin}/clip"
     exit 0
 }
 
