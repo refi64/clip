@@ -31,7 +31,7 @@ tool_test() {
     which "$path" 2>&1 >/dev/null && tool=$1
 }
 
-usage_str="usage: $0 [-h] [-ios] [<file|->]"
+usage_str="usage: $0 [-h] [-iosn] [<file|->]"
 
 usage() {
     echo "$usage_str"
@@ -49,6 +49,7 @@ help() {
     echo -e "-i\tInstall this tool to \$BINDIR (default: /usr/local/bin)."
     echo -e "-o\tPaste instead of copy."
     echo -e "-s\tTry to use xsel before trying xclip."
+    echo -e "-n\tStrip the last newline when copying or pasting."
     echo -e "<file>\tInput file when copying, or output file when pasting."
     echo -e "\tDefault: stdin/stdout."
     exit 0
@@ -64,8 +65,12 @@ install_() {
     exit 0
 }
 
-tail() {
-    echo "$@" | cut -c 2-
+argtail() {
+    printf "%s" "$@" | cut -c 2-
+}
+
+rmlastnl() {
+    awk '{if(n)print "";printf "%s",$0;n=1}'
 }
 
 
@@ -73,9 +78,11 @@ mode=copy
 order="xclip xsel"
 xclip=${CLIP_XCLIP:-xclip}
 xsel=${CLIP_XSEL:-xsel}
+xclip_args=
+xsel_reader=cat
 
 while [[ "$1" =~ ^- ]]; do
-    arg=`tail "$1"`
+    arg=`argtail "$1"`
 
     while [ -n "$arg" ]; do
         case "$arg" in
@@ -84,10 +91,11 @@ while [[ "$1" =~ ^- ]]; do
         o*) mode=paste ;;
         i*) install_ ;;
         s*) order="xsel xclip" ;;
+        n*) xclip_args=-rmlastnl; xsel_reader=rmlastnl ;;
         *) usage_error ;;
         esac
 
-        arg=`tail "$arg"`
+        arg=`argtail "$arg"`
     done
 
     shift
@@ -107,11 +115,11 @@ done
 [ -z "$tool" ] && error "Cannot find xclip or xsel."
 
 case "$tool-$mode-$file" in
-    xclip-copy-*) $xclip -selection clipboard $file ;;
-    xclip-paste-) $xclip -o -selection clipboard ;;
-    xclip-paste-*) $xclip -o -selection clipboard > $file ;;
-    xsel-copy-) $xsel -ib ;;
-    xsel-copy-*) $xsel -ib < $file ;;
-    xsel-paste-) $xsel -ob ;;
-    xsel-paste-*) $xsel -ob > $file ;;
+    xclip-copy-*) $xclip -selection clipboard $xclip_args $file ;;
+    xclip-paste-) $xclip -o -selection clipboard $xclip_args ;;
+    xclip-paste-*) $xclip -o -selection clipboard $xclip_args > $file ;;
+    xsel-copy-) $xsel_reader | $xsel -ib ;;
+    xsel-copy-*) $xsel_reader < $file | $xsel -ib ;;
+    xsel-paste-) $xsel -ob | $xsel_reader ;;
+    xsel-paste-*) $xsel -ob | $xsel_reader > $file ;;
 esac

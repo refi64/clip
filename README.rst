@@ -35,6 +35,11 @@ Paste to file::
 
   $ clip myfile
 
-Use xsel instead of xclip when possible:
+Copy/paste while stripping newlines::
+
+  $ echo 123 | clip -n
+  $ clip -on
+
+Use xsel instead of xclip when possible::
 
   $ clip -s other_stuff_goes_here
