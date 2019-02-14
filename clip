@@ -28,7 +28,7 @@ error() {
 
 tool_test() {
     local path=${!1}
-    which "$path" 2>&1 >/dev/null && tool=$1
+    which "$path" >/dev/null 2>&1 && tool=$1 ||:
 }
 
 usage_str="usage: $0 [-h] [-iosn] [<file|->]"
